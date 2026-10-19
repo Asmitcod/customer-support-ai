@@ -50,7 +50,11 @@ def _call_gemini(api_key: str, system_prompt: str, user_prompt: str) -> str:
     payload = {
         "system_instruction": {"parts": [{"text": system_prompt}]},
         "contents": [{"parts": [{"text": user_prompt}]}],
-        "generationConfig": {"temperature": 0.2, "maxOutputTokens": 400},
+        "generationConfig": {
+            "temperature": 0.2,
+            "maxOutputTokens": 2048,
+            "thinkingConfig": {"thinkingBudget": 0},
+        },
     }
     response = requests.post(url, headers=headers, json=payload, timeout=15)
     response.raise_for_status()
