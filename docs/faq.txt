@@ -1,0 +1,16 @@
+FAQ
+
+Q: How do I reset my password?
+A: Use the Forgot Password link on the sign-in page. A reset email should arrive within five minutes.
+
+Q: Can I change my billing cycle?
+A: Yes. Billing can switch eligible accounts between monthly and annual billing.
+
+Q: Where can I see invoices?
+A: Invoices are available under Account Settings, then Billing.
+
+Q: How do I contact Sales?
+A: Ask for pricing, demos, plan comparison, or enterprise options and the Sales team will help.
+
+Q: Can support remember my previous issue?
+A: Yes. The support system stores past interactions in local SQLite memory for later recall.

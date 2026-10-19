@@ -1,0 +1,11 @@
+langchain==0.3.19
+langchain-community==0.3.18
+langchain-core==0.3.40
+langchain-ollama==0.2.3
+langchain-text-splitters==0.3.6
+langgraph==0.2.76
+pydantic==2.10.6
+typing-extensions==4.12.2
+streamlit>=1.35.0
+pandas>=2.0.0
+

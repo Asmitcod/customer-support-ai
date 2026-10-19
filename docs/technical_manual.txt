@@ -1,0 +1,7 @@
+Technical Manual
+
+If the application crashes during file upload, first verify that the file is under 100 MB and uses a supported format: PDF, CSV, XLSX, DOCX, PNG, or JPG.
+Ask the customer to clear the browser cache, retry in a private browser window, and confirm that their internet connection is stable.
+If crashes continue, collect the browser name, operating system, file type, file size, and approximate time of the failed upload.
+Technical Support can review application logs after receiving those details.
+Password problems are handled by the Account department, not Technical Support.
