@@ -1,8 +1,20 @@
+import os
+import socket
+import requests
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
 
 
 MODEL_NAME = "llama3.1:latest"
+
+
+def _is_ollama_online() -> bool:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.3)
+            return s.connect_ex(("127.0.0.1", 11434)) == 0
+    except Exception:
+        return False
 
 
 def _call_ollama(system_prompt: str, user_prompt: str) -> str:
@@ -16,6 +28,56 @@ def _call_ollama(system_prompt: str, user_prompt: str) -> str:
     chain = prompt | model
     response = chain.invoke({})
     return response.content.strip()
+
+
+def _get_gemini_api_key() -> str:
+    key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if key:
+        return key
+    try:
+        import streamlit as st
+        key = st.secrets.get("GEMINI_API_KEY", "") or st.session_state.get("gemini_api_key", "")
+        if key:
+            return key.strip()
+    except Exception:
+        pass
+    return ""
+
+
+def _call_gemini(api_key: str, system_prompt: str, user_prompt: str) -> str:
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "system_instruction": {"parts": [{"text": system_prompt}]},
+        "contents": [{"parts": [{"text": user_prompt}]}],
+        "generationConfig": {"temperature": 0.2, "maxOutputTokens": 400},
+    }
+    response = requests.post(url, headers=headers, json=payload, timeout=15)
+    response.raise_for_status()
+    data = response.json()
+    candidates = data.get("candidates", [])
+    if candidates and "content" in candidates[0]:
+        parts = candidates[0]["content"].get("parts", [])
+        if parts and "text" in parts[0]:
+            return parts[0]["text"].strip()
+    raise ValueError("Unexpected Gemini response structure")
+
+
+def _call_llm(system_prompt: str, user_prompt: str) -> str:
+    # 1. Prefer local Ollama if online
+    if _is_ollama_online():
+        try:
+            return _call_ollama(system_prompt, user_prompt)
+        except Exception:
+            pass
+
+    # 2. Prefer Gemini API if key is available (ideal for Cloud deployment)
+    gemini_key = _get_gemini_api_key()
+    if gemini_key:
+        return _call_gemini(gemini_key, system_prompt, user_prompt)
+
+    raise RuntimeError("No LLM provider available")
+
 
 
 import re
@@ -99,6 +161,14 @@ def _generate_fallback_response(intent: str, query: str, retrieved_context: str)
     return f"Hello, I can assist you with that. {summary}"
 
 
+def get_active_provider_name() -> str:
+    if _is_ollama_online():
+        return "Ollama (Local llama3.1)"
+    if _get_gemini_api_key():
+        return "Google Gemini 1.5 Flash (Cloud)"
+    return "Smart Fallback Synthesizer"
+
+
 def generate_agent_response(intent: str, query: str, retrieved_context: str) -> str:
     system_prompt = (
         f"You are the {intent} customer support agent. "
@@ -109,12 +179,11 @@ def generate_agent_response(intent: str, query: str, retrieved_context: str) -> 
     user_prompt = f"Customer query:\n{query}\n\nRetrieved company context:\n{retrieved_context}\n\nResponse to customer:"
 
     try:
-        raw = _call_ollama(system_prompt, user_prompt)
+        raw = _call_llm(system_prompt, user_prompt)
         return _clean_response(raw)
     except Exception:
-        # Graceful, high-quality fallback response when Ollama is unavailable
+        # Graceful, high-quality fallback response when no LLM is reachable
         return _generate_fallback_response(intent, query, retrieved_context)
-
 
 
 def supervisor_review(intent: str, query: str, draft_response: str) -> str:
@@ -135,8 +204,9 @@ def supervisor_review(intent: str, query: str, draft_response: str) -> str:
     )
 
     try:
-        raw = _call_ollama(system_prompt, user_prompt)
+        raw = _call_llm(system_prompt, user_prompt)
         return _clean_response(raw)
     except Exception:
         return _clean_response(draft_response)
+
 

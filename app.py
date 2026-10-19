@@ -1,9 +1,10 @@
-﻿import os
+import os
 import sqlite3
 from pathlib import Path
 import streamlit as st
 import pandas as pd
 
+from agents.support_agents import get_active_provider_name
 from graph.workflow import build_customer_support_graph, _requires_approval
 from memory.sqlite_memory import SQLiteMemory
 from rag.retriever import KnowledgeRetriever, ensure_sample_documents
@@ -48,6 +49,7 @@ st.markdown("""
     .badge-green { background-color: #D1FAE5; color: #065F46; }
     .badge-purple { background-color: #EDE9FE; color: #5B21B6; }
     .badge-amber { background-color: #FEF3C7; color: #92400E; }
+    .badge-cyan { background-color: #CFFAFE; color: #0E7490; }
     .stChatMessage { border-radius: 0.75rem; }
 </style>
 """, unsafe_allow_html=True)
@@ -84,6 +86,36 @@ with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/4712/4712109.png", width=60)
     st.title("Control Panel")
     
+    # Cloud Gemini API Key
+    st.markdown("### ☁️ Cloud LLM (Gemini API)")
+    saved_key = os.environ.get("GEMINI_API_KEY", "")
+    if not saved_key:
+        try:
+            saved_key = st.secrets.get("GEMINI_API_KEY", "")
+        except Exception:
+            pass
+
+    gemini_key_input = st.text_input(
+        "Gemini API Key (for Cloud):",
+        value=st.session_state.get("gemini_api_key", saved_key),
+        type="password",
+        placeholder="AIzaSy...",
+        help="Optional: Free Google Gemini API key to power live AI on Streamlit Cloud."
+    )
+    if gemini_key_input:
+        st.session_state["gemini_api_key"] = gemini_key_input
+        os.environ["GEMINI_API_KEY"] = gemini_key_input
+
+    # Active Provider Status Badge
+    active_engine = get_active_provider_name()
+    if "Ollama" in active_engine:
+        st.success(f"⚡ Active: {active_engine}")
+    elif "Gemini" in active_engine:
+        st.info(f"✨ Active: {active_engine}")
+    else:
+        st.warning(f"🛡️ Active: {active_engine}")
+
+    st.markdown("---")
     st.markdown("### ⚡ Quick Demo Queries")
     demo_queries = [
         ("💰 Pricing Plans", "What are the pricing plans available for your software?"),
@@ -136,15 +168,18 @@ with st.sidebar:
 
 # Main Area
 st.markdown('<div class="main-header">🤖 AI Customer Support System</div>', unsafe_allow_html=True)
+active_provider = get_active_provider_name()
 st.markdown(
-    '<div class="sub-header">'
-    '<span class="badge badge-blue">LangGraph Multi-Agent</span>'
-    '<span class="badge badge-green">Local RAG</span>'
-    '<span class="badge badge-purple">Human-in-the-Loop</span>'
-    '<span class="badge badge-amber">SQLite Persistent Memory</span>'
-    '</div>',
+    f'<div class="sub-header">'
+    f'<span class="badge badge-blue">LangGraph Multi-Agent</span>'
+    f'<span class="badge badge-green">Local RAG</span>'
+    f'<span class="badge badge-purple">Human-in-the-Loop</span>'
+    f'<span class="badge badge-amber">SQLite Persistent Memory</span>'
+    f'<span class="badge badge-cyan">{active_provider}</span>'
+    f'</div>',
     unsafe_allow_html=True
 )
+
 
 # Chat history initialization
 if "messages" not in st.session_state:
